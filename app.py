@@ -66,17 +66,18 @@ class Main:
         Muestra el menu principal.
         """
         while self.activo:
-            print("\n-----> MENÚ PRINCIPAL <-----")
             print("1.- Seleccionar un municipio y su localidad")
-            print("2.- Ver estadisticas de los municipios y localidades")
-            print("3.- Salir")
+            print("2.- Buscar localidad por nombre")             
+            print("3.- Ver estadisticas de los municipios y localidades")
+            print("4.- Salir")
             opcion = input("\nElige una opcion: ")
-            
             if opcion == "1":
                 self.seleccionar_municipio()
             elif opcion == "2":
-                self.mostrar_estadisticas()
+                self.buscar_por_nombre()                        
             elif opcion == "3":
+                self.mostrar_estadisticas()
+            elif opcion == "4":
                 self.salir()
             else:
                 print("Opción no válida. Intenta de nuevo.")
@@ -231,6 +232,41 @@ class Main:
                  f"Viento: {viento} km/h\n"
                  f"Estado del tiempo: {estado}")
         return texto
+    
+    def buscar_por_nombre(self):
+        """
+        Busca localidades por nombre (o parte del nombre) y muestra el clima
+        de la que elija el usuario.
+        """
+        texto = input("\nEscriba el nombre (o parte) de la localidad: ")
+        coincidencias = []
+        for localidad in self.lista_localidades:
+            if texto.lower() in localidad.nombre.lower():      
+                if localidad.longitud is not None and localidad.latitud is not None:
+                    coincidencias.append(localidad)
+
+        if len(coincidencias) == 0:
+            print("No se encontraron localidades con ese nombre.")
+            return None
+
+        for i, localidad in enumerate(coincidencias):
+            print(f"{i + 1}. {localidad.nombre} ({localidad.municipio})")
+
+        eleccion = input("\nSeleccione una localidad: ")
+        if not eleccion.isdigit():
+            print("Error: Por favor, ingrese un numero.")
+            return None
+        eleccion = int(eleccion)
+        if eleccion < 1 or eleccion > len(coincidencias):
+            print("Error: El numero seleccionado no es valido.")
+            return None
+        localidad_seleccionada = coincidencias[eleccion - 1]
+        print(self.obtener_datos_api(localidad_seleccionada))
+    
+    
+    
+    
+    
 
 
 # class Municipio:
