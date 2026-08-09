@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 import requests
-
+import matplotlib.pyplot as plt
 
 # CONSTANTE
 RUTA_ARCHIVO_PRINCIPAL = Path(__file__).parent / "datos"
@@ -74,7 +74,8 @@ class Main:
             print("4.- Ver cobertura (localidades sin coordenadas)")
             print("5.- Ranking de temperatura (sesion)")
             print("6.- Promedio de temperatura (sesion)")
-            print("7.- Salir")
+            print("7.- Ver historico de una localidad")
+            print("8.- Salir")
             opcion = input("\nElige una opcion: ")
             if opcion == "1":
                 self.seleccionar_municipio()
@@ -89,10 +90,12 @@ class Main:
             elif opcion == "6":
                 self.mostrar_promedio()
             elif opcion == "7":
+                self.mostrar_historico()
+            elif opcion == "8":
                 self.salir()
             else:
                 print("Opción no válida. Intenta de nuevo.")
-    
+                
     def salir(self):
         """
         Sale del programa.
@@ -320,25 +323,91 @@ class Main:
         promedio = round(suma / len(self.consultas), 2)
         print(f"Promedio de {len(self.consultas)} consultas: {promedio} C")
     
-    
-    
-    
-    
+    def mostrar_historico(self):
+        """
+        Consulta datos historicos de una localidad en un rango de fechas,
+        muestra un resumen por anio, indica el anio mas caluroso y mas lluvioso,
+        y genera un grafico de la temperatura por anio.
+        """
+       
+        texto = input("\nNombre de la localidad: ")
+        encontrada = None
+        for loc in self.lista_localidades:
+            if texto.lower() in loc.nombre.lower() and loc.latitud is not None:
+                encontrada = loc
+                break
+        if encontrada is None:
+            print("No se encontro una localidad con ese nombre y coordenadas.")
+            return None
+
+       
+        inicio = input("Fecha de inicio (AAAA-MM-DD): ")
+        fin = input("Fecha de fin (AAAA-MM-DD): ")
+
+       
+        url = "https://archive-api.open-meteo.com/v1/archive"
+        params = {
+            "latitude": encontrada.latitud,
+            "longitude": encontrada.longitud,
+            "start_date": inicio,
+            "end_date": fin,
+            "daily": "temperature_2m_mean,precipitation_sum,wind_speed_10m_max"
+        }
+        try:
+            diario = requests.get(url, params=params, timeout=30).json()["daily"]
+        except requests.RequestException:
+            print("Error: no se pudo conectar con la API historica.")
+            return None
+
+        fechas = diario["time"]
+        temps = diario["temperature_2m_mean"]
+        precips = diario["precipitation_sum"]
+        vientos = diario["wind_speed_10m_max"]
+
+        
+        anios = sorted(set(f[:4] for f in fechas))
+        resumenes = []
+        for anio in anios:
+            suma_t = 0
+            suma_p = 0
+            suma_v = 0
+            cuenta = 0
+            for i in range(len(fechas)):
+                if fechas[i][:4] == anio:
+                    suma_t += temps[i]
+                    suma_p += precips[i]
+                    suma_v += vientos[i]
+                    cuenta += 1
+            resumenes.append(ResumenAnual(anio, round(suma_t / cuenta, 1), round(suma_p, 1), round(suma_v / cuenta, 1)))
+
+       
+        print(f"\n--- Historico de {encontrada.nombre} ---")
+        for r in resumenes:
+            print(f"{r.anio}: Temp prom {r.temp_promedio} C | Precip total {r.precip_total} mm | Viento prom {r.viento_promedio} km/h")
+
+        
+        mas_caluroso = resumenes[0]
+        mas_lluvioso = resumenes[0]
+        for r in resumenes:
+            if r.temp_promedio > mas_caluroso.temp_promedio:
+                mas_caluroso = r
+            if r.precip_total > mas_lluvioso.precip_total:
+                mas_lluvioso = r
+        print(f"\nAnio mas caluroso: {mas_caluroso.anio} ({mas_caluroso.temp_promedio} C)")
+        print(f"Anio mas lluvioso: {mas_lluvioso.anio} ({mas_lluvioso.precip_total} mm)")
 
 
-# class Municipio:
-#     """
-#     Esta clase se encarga de almacenar los datos de un municipio.
-#     """
-#     def __init__(self, nombre, localidades):
-#         """
-#         Inicializa la clase.
-#         :param nombre: Nombre del municipio.
-#         :param localidades: Lista de localidades del municipio.
-#         """
-#         self.nombre = nombre
-#         self.localidades = localidades
 
+        lista_anios = [r.anio for r in resumenes]
+        lista_temps = [r.temp_promedio for r in resumenes]
+        plt.plot(lista_anios, lista_temps, marker="o")
+        plt.title(f"Temperatura promedio por anio - {encontrada.nombre}")
+        plt.xlabel("Anio")
+        plt.ylabel("Temperatura (C)")
+        plt.show()   
+    
+    
+    
 class Localidad:
     """
     Esta clase se encarga de almacenar los datos de una localidad.
@@ -355,12 +424,8 @@ class Localidad:
         self.municipio = municipio
         self.longitud = longitud
         self.latitud = latitud
-        
-        
-        
-        
-        
-        
+
+
 class Clima:
     """Guarda el resultado de una consulta de clima hecha en la sesion."""
     def __init__(self, localidad, municipio, temperatura):
@@ -373,6 +438,16 @@ class Clima:
         self.localidad = localidad
         self.municipio = municipio
         self.temperatura = temperatura
+        
+        
+        
+class ResumenAnual:
+    """Guarda el resumen de un anio: temperatura, precipitacion y viento."""
+    def __init__(self, anio, temp_promedio, precip_total, viento_promedio):
+        self.anio = anio
+        self.temp_promedio = temp_promedio
+        self.precip_total = precip_total
+        self.viento_promedio = viento_promedio
                
 
 # Crear un objeto de la clase Main
