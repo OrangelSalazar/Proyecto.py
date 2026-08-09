@@ -1,9 +1,46 @@
 # Para poder leer archivos json
+# Librerias nativas
 import json
 from pathlib import Path
 
-# CONSTANTE
+# Librerias de terceros 
+import requests
+
+# CONSTANTES
 RUTA_ARCHIVO_PRINCIPAL = Path(__file__).parent / "datos"
+URL_API = "https://api.open-meteo.com/v1/forecast"
+WEATHER_CODE = {
+    0: "Despejado",
+    1: "Mayormente despejado",
+    2: "Parcialmente nublado",
+    3: "Nublado",
+    45: "Niebla",
+    48: "Niebla con escarcha",
+    51: "Llovizna ligera",
+    53: "Llovizna moderada",
+    55: "Llovizna intensa",
+    56: "Llovizna ligera helada",
+    57: "Llovizna intensa helada",
+    61: "Lluvia ligera",
+    63: "Lluvia moderada",
+    65: "Lluvia intensa",
+    66: "Lluvia ligera helada",
+    67: "Lluvia intensa helada",
+    71: "Nieve ligera",
+    73: "Nieve moderada",
+    75: "Nieve intensa",
+    77: "Granos de hielo",
+    80: "Chubascos de lluvia ligera",
+    81: "Chubascos de lluvia moderada",
+    82: "Chubascos de lluvia intensa",
+    83: "Chubascos de nieve ligera",
+    84: "Chubascos de nieve moderada",
+    85: "Chubascos de nieve intensa",
+    86: "Chubascos de aguanieve",
+    95: "Tormenta eléctrica",
+    96: "Tormenta eléctrica con granizo ligero",
+    99: "Tormenta eléctrica con granizo intenso"
+}
 
 # Definir las clases
 class Main:
@@ -34,7 +71,7 @@ class Main:
             print("1.- Seleccionar un municipio y su localidad")
             print("2.- Ver estadisticas de los municipios y localidades")
             print("3.- Salir")
-            opcion = input("\nElige una opcion: \n")
+            opcion = input("\nElige una opcion: ")
             
             if opcion == "1":
                 self.seleccionar_municipio()
@@ -122,7 +159,7 @@ class Main:
         if eleccion < 1 or eleccion > len(self.lista_municipios):
             print("Error: El número seleccionado no es válido.")
             return None
-        # return self.lista_municipios[eleccion - 1]
+        
         for i, localidad in enumerate(self.lista_localidades):
             if localidad.municipio == self.lista_municipios[eleccion - 1]:
                 if localidad.longitud is not None and localidad.latitud is not None:
@@ -136,24 +173,26 @@ class Main:
             print("Error: El número seleccionado no es válido.")
             return None
         localidad_seleccionada = self.lista_localidades[eleccion2 - 1]
-        print(f"Localidad: {localidad_seleccionada.nombre}")
-        print(f"Latitud: {localidad_seleccionada.latitud}")
-        print(f"Longitud: {localidad_seleccionada.longitud}")
-        datos = self.obtener_datos_api(localidad_seleccionada)
-        print(datos)
+        # print(f"Localidad: {localidad_seleccionada.nombre}")
+        # print(f"Latitud: {localidad_seleccionada.latitud}")
+        # print(f"Longitud: {localidad_seleccionada.longitud}")
+        print("\n-----> DATOS DEL CLIMA <-----\n")
+        print(self.obtener_clima(localidad_seleccionada))
 
-# class Municipio:
-#     """
-#     Esta clase se encarga de almacenar los datos de un municipio.
-#     """
-#     def __init__(self, nombre, localidades):
-#         """
-#         Inicializa la clase.
-#         :param nombre: Nombre del municipio.
-#         :param localidades: Lista de localidades del municipio.
-#         """
-#         self.nombre = nombre
-#         self.localidades = localidades
+    def obtener_clima(self, localidad):
+        """
+        Obtiene los datos del clima de la localidad desde la API de Open-Meteo.
+        :param localidad: Localidad de la cual se quieren obtener los datos. 
+        :return: String con el clima de la localidad. None si hay error.
+        """
+        url = URL_API + f"?latitude={localidad.latitud}&longitude={localidad.longitud}&current=weather_code"
+        respuesta = requests.get(url)
+        datos = respuesta.json()
+        if datos.get("error"):
+            print("Error: No se pudieron obtener los datos del clima.")
+            return None
+        clima = WEATHER_CODE.get(datos.get("current").get("weather_code")) 
+        return f"Clima en {localidad.nombre}: {clima}"
 
 class Localidad:
     """
@@ -183,6 +222,3 @@ main.mostrar_estadisticas()
 
 # Ejecutar el menu
 main.mostrar_menu()
-
-# Seleccionar un municipio
-# municipio = main.seleccionar_municipio()
