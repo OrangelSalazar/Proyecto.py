@@ -60,24 +60,35 @@ class Main:
         self.porc_loc_sin_coordenadas = 0
         self.porc_loc_con_coordenadas = 0
         self.activo = True
+        self.consultas = []
     
     def mostrar_menu(self):
         """
-        Muestra el menu principal.
+        Muestra el menu principal y ejecuta la opcion elegida por el usuario.
         """
         while self.activo:
+            print("\n-----> MENÚ PRINCIPAL <-----")
             print("1.- Seleccionar un municipio y su localidad")
-            print("2.- Buscar localidad por nombre")             
+            print("2.- Buscar localidad por nombre")
             print("3.- Ver estadisticas de los municipios y localidades")
-            print("4.- Salir")
+            print("4.- Ver cobertura (localidades sin coordenadas)")
+            print("5.- Ranking de temperatura (sesion)")
+            print("6.- Promedio de temperatura (sesion)")
+            print("7.- Salir")
             opcion = input("\nElige una opcion: ")
             if opcion == "1":
                 self.seleccionar_municipio()
             elif opcion == "2":
-                self.buscar_por_nombre()                        
+                self.buscar_por_nombre()
             elif opcion == "3":
                 self.mostrar_estadisticas()
             elif opcion == "4":
+                self.mostrar_cobertura()
+            elif opcion == "5":
+                self.mostrar_ranking()
+            elif opcion == "6":
+                self.mostrar_promedio()
+            elif opcion == "7":
                 self.salir()
             else:
                 print("Opción no válida. Intenta de nuevo.")
@@ -206,7 +217,7 @@ class Main:
         """
         Consulta el clima actual de una localidad en la API de Open-Meteo.
         :param localidad: Objeto Localidad con latitud y longitud.
-        :return: Un texto con los datos del clima.
+        :return: Un texto con el clima, o un mensaje de error si falla la conexion.
         """
         url = "https://api.open-meteo.com/v1/forecast"
         params = {
@@ -214,24 +225,29 @@ class Main:
             "longitude": localidad.longitud,
             "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
         }
-        respuesta = requests.get(url, params=params, timeout=15)
-        datos = respuesta.json()
+        try:
+            respuesta = requests.get(url, params=params, timeout=15)
+            datos = respuesta.json()
 
-        actual = datos["current"]
-        temperatura = actual["temperature_2m"]
-        humedad = actual["relative_humidity_2m"]
-        viento = actual["wind_speed_10m"]
-        codigo = actual["weather_code"]
-        estado = WEATHER_CODE.get(codigo, "Desconocido")
+            actual = datos["current"]
+            temperatura = actual["temperature_2m"]
+            self.consultas.append(Clima(localidad.nombre, localidad.municipio, temperatura))
+            humedad = actual["relative_humidity_2m"]
+            viento = actual["wind_speed_10m"]
+            codigo = actual["weather_code"]
+            estado = WEATHER_CODE.get(codigo, "Desconocido")
 
-        texto = (f"Municipio: {localidad.municipio}\n"
-                 f"Localidad: {localidad.nombre}\n"
-                 f"Coordenadas: ({localidad.latitud}, {localidad.longitud})\n"
-                 f"Temperatura: {temperatura} C\n"
-                 f"Humedad: {humedad}%\n"
-                 f"Viento: {viento} km/h\n"
-                 f"Estado del tiempo: {estado}")
-        return texto
+            texto = (f"Municipio: {localidad.municipio}\n"
+                     f"Localidad: {localidad.nombre}\n"
+                     f"Coordenadas: ({localidad.latitud}, {localidad.longitud})\n"
+                     f"Temperatura: {temperatura} C\n"
+                     f"Humedad: {humedad}%\n"
+                     f"Viento: {viento} km/h\n"
+                     f"Estado del tiempo: {estado}")
+            return texto
+        except requests.RequestException:
+            return "Error: no se pudo conectar con la API del clima. Revisa tu internet."
+        
     
     def buscar_por_nombre(self):
         """
@@ -262,6 +278,47 @@ class Main:
             return None
         localidad_seleccionada = coincidencias[eleccion - 1]
         print(self.obtener_datos_api(localidad_seleccionada))
+        
+    def mostrar_cobertura(self):
+        """
+        Muestra las localidades SIN coordenadas, agrupadas por municipio.
+        """
+        for nombre_municipio in self.lista_municipios:
+            print(f"\n--- {nombre_municipio} (sin coordenadas) ---")
+            for localidad in self.lista_localidades:
+                if localidad.municipio == nombre_municipio:
+                    if localidad.longitud is None or localidad.latitud is None:
+                        print(f"- {localidad.nombre}")
+                        
+    def mostrar_ranking(self):
+        """
+        Muestra la localidad mas calida y la mas fria de las consultadas en la sesion.
+        """
+        if len(self.consultas) == 0:
+            print("Aun no has consultado ninguna localidad en esta sesion.")
+            return None
+        mas_calida = self.consultas[0]
+        mas_fria = self.consultas[0]
+        for c in self.consultas:
+            if c.temperatura > mas_calida.temperatura:
+                mas_calida = c
+            if c.temperatura < mas_fria.temperatura:
+                mas_fria = c
+        print(f"Mas calida: {mas_calida.localidad} ({mas_calida.municipio}) - {mas_calida.temperatura} C")
+        print(f"Mas fria: {mas_fria.localidad} ({mas_fria.municipio}) - {mas_fria.temperatura} C")
+
+    def mostrar_promedio(self):
+        """
+        Muestra el promedio de temperatura de las localidades consultadas en la sesion.
+        """
+        if len(self.consultas) == 0:
+            print("Aun no has consultado ninguna localidad en esta sesion.")
+            return None
+        suma = 0
+        for c in self.consultas:
+            suma += c.temperatura
+        promedio = round(suma / len(self.consultas), 2)
+        print(f"Promedio de {len(self.consultas)} consultas: {promedio} C")
     
     
     
@@ -298,6 +355,25 @@ class Localidad:
         self.municipio = municipio
         self.longitud = longitud
         self.latitud = latitud
+        
+        
+        
+        
+        
+        
+class Clima:
+    """Guarda el resultado de una consulta de clima hecha en la sesion."""
+    def __init__(self, localidad, municipio, temperatura):
+        """
+        Inicializa una consulta de clima.
+        :param localidad: Nombre de la localidad.
+        :param municipio: Municipio de la localidad.
+        :param temperatura: Temperatura consultada.
+        """
+        self.localidad = localidad
+        self.municipio = municipio
+        self.temperatura = temperatura
+               
 
 # Crear un objeto de la clase Main
 main = Main("zonas_caracas.json")
