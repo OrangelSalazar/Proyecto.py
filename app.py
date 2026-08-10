@@ -3,6 +3,15 @@ import json
 from pathlib import Path
 import requests
 import matplotlib.pyplot as plt
+import os
+os.system("")  
+
+VERDE = "\033[1;32m"
+AZUL = "\033[1;34m"
+ROJO = "\033[1;31m"
+AMARILLO = "\033[1;33m"
+CIAN = "\033[1;36m"
+RESET = "\033[0m"
 
 # CONSTANTE
 RUTA_ARCHIVO_PRINCIPAL = Path(__file__).parent / "datos"
@@ -67,7 +76,7 @@ class Main:
         Muestra el menu principal y ejecuta la opcion elegida por el usuario.
         """
         while self.activo:
-            print("\n-----> MENÚ PRINCIPAL <-----")
+            print(f"\n{VERDE}-----> MENÚ PRINCIPAL <-----{RESET}")
             print("1.- Seleccionar un municipio y su localidad")
             print("2.- Buscar localidad por nombre")
             print("3.- Ver estadisticas de los municipios y localidades")
@@ -76,7 +85,7 @@ class Main:
             print("6.- Promedio de temperatura (sesion)")
             print("7.- Ver historico de una localidad")
             print("8.- Salir")
-            opcion = input("\nElige una opcion: ")
+            opcion = input(f"\n{AMARILLO}Elige una opcion: {RESET}")
             if opcion == "1":
                 self.seleccionar_municipio()
             elif opcion == "2":
@@ -94,7 +103,7 @@ class Main:
             elif opcion == "8":
                 self.salir()
             else:
-                print("Opción no válida. Intenta de nuevo.")
+                print(f"{ROJO}Opción no válida. Intenta de nuevo.{RESET}")
                 
     def salir(self):
         """
@@ -166,7 +175,7 @@ class Main:
                 porcentaje = round(con_coordenadas / total * 100, 2)
             else:
                 porcentaje = 0
-            print(f"\n--- {nombre_municipio} ---")
+            print(f"\n{VERDE}--- {nombre_municipio} ---{RESET}")
             print(f"Localidades cargadas: {total}")
             print(f"Con coordenadas: {con_coordenadas}")
             print(f"Sin coordenadas: {sin_coordenadas}")
@@ -181,32 +190,30 @@ class Main:
             print(f"{i + 1}. {municipio}")
         eleccion = input("\nSeleccione un municipio: ")
         if not eleccion.isdigit():
-            print("Error: Por favor, ingrese un número.")
+            print(f"{ROJO}Error: Por favor, ingrese un número.{RESET}")
             return None
         eleccion = int(eleccion)
         if eleccion < 1 or eleccion > len(self.lista_municipios):
-            print("Error: El número seleccionado no es válido.")
+            print(f"{ROJO}Error: El número seleccionado no es válido.{RESET}")
             return None
         municipio_elegido = self.lista_municipios[eleccion - 1]
 
-        
         localidades_municipio = []
         for localidad in self.lista_localidades:
             if localidad.municipio == municipio_elegido:
                 if localidad.longitud is not None and localidad.latitud is not None:
                     localidades_municipio.append(localidad)
 
-        
         for i, localidad in enumerate(localidades_municipio):
             print(f"{i + 1}. {localidad.nombre}")
 
         eleccion2 = input("\nSeleccione una localidad: ")
         if not eleccion2.isdigit():
-            print("Error: Por favor, ingrese un número.")
+            print(f"{ROJO}Error: Por favor, ingrese un número.{RESET}")
             return None
         eleccion2 = int(eleccion2)
         if eleccion2 < 1 or eleccion2 > len(localidades_municipio):
-            print("Error: El número seleccionado no es válido.")
+            print(f"{ROJO}Error: El número seleccionado no es válido.{RESET}")
             return None
         localidad_seleccionada = localidades_municipio[eleccion2 - 1]
 
@@ -240,18 +247,16 @@ class Main:
             codigo = actual["weather_code"]
             estado = WEATHER_CODE.get(codigo, "Desconocido")
 
-            texto = (f"Municipio: {localidad.municipio}\n"
-                     f"Localidad: {localidad.nombre}\n"
+            texto = (f"Municipio: {CIAN}{localidad.municipio}{RESET}\n"
+                     f"Localidad: {CIAN}{localidad.nombre}{RESET}\n"
                      f"Coordenadas: ({localidad.latitud}, {localidad.longitud})\n"
-                     f"Temperatura: {temperatura} C\n"
-                     f"Humedad: {humedad}%\n"
-                     f"Viento: {viento} km/h\n"
-                     f"Estado del tiempo: {estado}")
+                     f"Temperatura: {CIAN}{temperatura} C{RESET}\n"
+                     f"Humedad: {CIAN}{humedad}%{RESET}\n"
+                     f"Viento: {CIAN}{viento} km/h{RESET}\n"
+                     f"Estado del tiempo: {CIAN}{estado}{RESET}")
             return texto
         except requests.RequestException:
-            return "Error: no se pudo conectar con la API del clima. Revisa tu internet."
-        
-    
+            return f"{ROJO}Error: no se pudo conectar con la API del clima. Revisa tu internet.{RESET}"
     def buscar_por_nombre(self):
         """
         Busca localidades por nombre (o parte del nombre) y muestra el clima
